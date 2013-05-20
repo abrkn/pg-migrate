@@ -1,0 +1,36 @@
+#!/usr/bin/env node
+var fs = require('fs')
+, async = require('async')
+, pgm = require('..')
+, colors = require('colors')
+, path  = require('path')
+, Client = require('pg').Client
+, argv = require('optimist')
+.usage('Run PostgreSQL migration scripts.\nUsage: $0 -u postgres://postgres@localhost/mydb')
+.describe('u', 'database url').demand('u').alias('u', 'url')
+.describe('f', 'from index').alias('f', 'from').default('f', 0)
+.describe('t', 'to index').alias('t', 'to').default('t', 1000)
+.describe('d', 'directory').alias('d', 'input').default('d', process.cwd())
+.argv
+
+var client = new Client(argv.u)
+client.connect()
+
+var dir = path.resolve(argv.d)
+, files = pgm.find(dir, argv.f, argv.t)
+
+if (argv.f === 0 && argv.t == 1000) console.log('running all %s migrations', files.length)
+else console.log('running %s migrations (%s to %s)', files.length, argv.f, argv.t)
+
+async.eachSeries(files, function(fn, next) {
+    process.stdout.write(fn + '...')
+    var q = fs.readFileSync(path.join(dir, fn), 'utf8')
+    client.query(q, function(err) {
+        if (err) return next(err)
+        console.log('OK'.green)
+        next()
+    })
+}, function(err) {
+    if (err) console.error('ERROR: %s\n'.red, err.message)
+    process.exit(err ? 1 : 0)
+})

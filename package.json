@@ -1,0 +1,26 @@
+{
+  "name": "pg-migrate",
+  "version": "1.0.0",
+  "license": "MIT",
+  "dependencies": {
+    "optimist": "~0.5.0",
+    "pg": "~1.1.0",
+    "colors": "~0.6.0-1",
+    "async": "~0.2.8"
+  },
+  "preferGlobal": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/abrkn/pg-migrate.git"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "bin": {
+    "pg-migrate": "./bin/pg-migrate"
+  },
+  "devDependencies": {
+    "expect.js": "~0.2.0",
+    "mocha": "~1.9.0"
+  }
+}
