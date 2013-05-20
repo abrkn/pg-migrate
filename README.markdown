@@ -13,6 +13,11 @@ with a number and end with .sql. You can use any number of leading zeroes.
 004.sql
 ```
 
+Install
+---
+
+`npm install -g pg-migrate`
+
 Usage
 ---
 
