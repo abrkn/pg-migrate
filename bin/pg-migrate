@@ -18,7 +18,7 @@ var argv = require('optimist')
 
 var url = parseUrl(argv.u)
 , statePath = path.join(argv.d, 'migrations.json')
-, state = fs.existsSync(statePath) ? require(statePath) : {}
+, state = fs.existsSync(statePath) ? require(path.resolve(statePath)) : {}
 , databaseId = url.host + url.pathname
 , databaseState = state[databaseId] || (state[databaseId] = { current: 0 })
 , from = argv.f || databaseState.current + 1
@@ -43,6 +43,6 @@ async.eachSeries(files, function(f, next) {
     })
 }, function(err) {
     if (err) console.error('ERROR: %s\n'.red, err.message)
-    fs.writeFileSync(statePath, JSON.stringify(state, null, 4))
+    fs.writeFileSync(path.resolve(statePath), JSON.stringify(state, null, 4))
     process.exit(err ? 1 : 0)
 })
