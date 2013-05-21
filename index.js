@@ -10,6 +10,9 @@ pgm.number = function(filename) {
 
 pgm.find = function(dir, from, to) {
     return fs.readdirSync(dir)
+    .filter(function(fn) {
+        return /\.sql/i.test(fn)
+    })
     .map(function(fn) {
         return {
             number: pgm.number(fn),
@@ -21,8 +24,5 @@ pgm.find = function(dir, from, to) {
     })
     .sort(function(a, b) {
         return a.number - b.number
-    })
-    .map(function(f) {
-        return f.filename
     })
 }
