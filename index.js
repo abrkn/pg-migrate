@@ -7,7 +7,7 @@ pgm.number = function(filename) {
     return +match[1]
 }
 
-pgm.find = function(dir, from, to) {
+pgm.find = function(dir, exclude) {
     return fs.readdirSync(dir)
     .filter(function(fn) {
         return pgm.number(fn) !== null
@@ -19,7 +19,7 @@ pgm.find = function(dir, from, to) {
         }
     })
     .filter(function(f) {
-        return f.number >= from && f.number <= to
+        return !(exclude && ~exclude.indexOf(f.number))
     })
     .sort(function(a, b) {
         return a.number - b.number
