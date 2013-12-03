@@ -19,7 +19,7 @@ pgm.find = function(dir, exclude) {
         }
     })
     .filter(function(f) {
-        return !(exclude && ~exclude.indexOf(f.number))
+        return !(exclude && ~exclude.indexOf(f.number.toString()))
     })
     .sort(function(a, b) {
         return a.number - b.number

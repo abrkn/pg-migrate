@@ -15,10 +15,6 @@ var argv = require('optimist')
 .argv
 
 var url = parseUrl(argv.u)
-, statePath = path.join(argv.d, 'migrations.json')
-, state = fs.existsSync(statePath) ? require(path.resolve(statePath)) : {}
-, databaseId = url.host + url.pathname
-, databaseState = state[databaseId] || (state[databaseId] = { completed: [] })
 
 if (!url.host || !url.pathname) {
     console.error('ERROR: Invalid database URI'.red)
@@ -26,32 +22,70 @@ if (!url.host || !url.pathname) {
 }
 
 var dir = path.resolve(argv.d)
+, conn = new Client(argv.u)
+, alreadyRun
 
-if (!require('../upgrade')(state, dir)) {
-    saveState()
-}
+async.series([
+    // Connect to the database
+    function(cb) {
+        conn.connect(cb)
+    },
 
-function saveState() {
-    fs.writeFileSync(path.resolve(statePath), JSON.stringify(state, null, 4))
-}
+    // Create state table if it's missing
+    function(cb) {
+        conn.query([
+            'CREATE TABLE IF NOT EXISTS pg_migrate (',
+            '   migration_id text PRIMARY KEY',
+            ')'
+        ].join('\n'), cb)
+    },
 
-var files = pgm.find(dir, databaseState.completed)
-, client = new Client(argv.u)
-client.connect()
+    // Perform upgrades
+    function(cb) {
+        require('../upgrade2')(dir, url, conn, cb)
+    },
 
-console.log('running %s migrations', files.length)
+    // Find which migrations have already run
+    function(cb) {
+        conn.query('SELECT migration_id FROM pg_migrate', function(err, dr) {
+            if (err) return cb(err)
+            alreadyRun = dr.rows.map(function(row) {
+                return row.migration_id
+            })
+            cb()
+        })
+    },
 
-async.eachSeries(files, function(f, next) {
-    process.stdout.write(f.filename + '...')
-    var q = fs.readFileSync(path.join(dir, f.filename), 'utf8')
-    client.query(q, function(err) {
-        if (err) return next(err)
-        databaseState.completed.push(f.number)
-        console.log('OK'.green)
-        next()
-    })
-}, function(err) {
-    if (err) console.error('ERROR: %s\n'.red, err.message)
-    saveState()
-    process.exit(err ? 1 : 0)
+    // Run migrations
+    function(cb) {
+        var files = pgm.find(dir, alreadyRun)
+
+        console.log('running %s migrations', files.length)
+
+        async.eachSeries(files, function(f, cb) {
+            process.stdout.write(f.filename + '...')
+            var q = fs.readFileSync(path.join(dir, f.filename), 'utf8')
+            if (argv.dry) {
+                console.log('Would run:\n%s', q)
+                return cb()
+            }
+            conn.query(q, function(err) {
+                if (err) return cb(err)
+                conn.query({
+                    text: 'INSERT INTO pg_migrate (migration_id) VALUES ($1)',
+                    values: [f.number.toString()]
+                }, function(err) {
+                    if (err) return cb(err)
+                    console.log('OK'.green)
+                    cb()
+                })
+            })
+        }, cb)
+    }
+], function(err) {
+    if (err) {
+        console.error('ERROR: %s\n%s', err.message, err.stack)
+        return process.exit(1)
+    }
+    process.exit(0)
 })
